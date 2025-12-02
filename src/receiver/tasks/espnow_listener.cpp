@@ -2,6 +2,7 @@
 #include "robot_command.h"
 
 #include <Arduino.h>
+#include <ESP32Servo.h>
 
 #ifndef ROBOT_NAME
 #define ROBOT_NAME "Unknown"
@@ -21,6 +22,88 @@ namespace tasks::espnow {
 namespace {
 bool g_initialized = false;
 const uint8_t BROADCAST_MAC[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
+// Motor Left
+const int in1 = 13; 
+const int in2 = 14;
+const int pwm1 = 12;
+
+// Motor Right
+const int in3 = 33;
+const int in4 = 27;
+const int pwm2 = 32;
+
+// Servo pins
+const int servo1Pin = 26;
+const int servo2Pin = 22;
+
+Servo servo1;
+Servo servo2;
+
+int currentServo1Pos = 90;
+int currentServo2Pos = 90;
+
+void smoothServoWrite(Servo &servo, int &currentPos, int targetPos, int step, int delayTime) {
+  if (targetPos > currentPos) {
+    for (int pos = currentPos; pos <= targetPos; pos += step) {
+      servo.write(pos);
+      delay(delayTime);
+    }
+  } else {
+    for (int pos = currentPos; pos >= targetPos; pos -= step) {
+      servo.write(pos);
+      delay(delayTime);
+    }
+  }
+  currentPos = targetPos;
+}
+
+void moveForward(int speed) {
+  digitalWrite(in1, HIGH);
+  digitalWrite(in2, LOW);
+  digitalWrite(in3, HIGH);
+  digitalWrite(in4, LOW);
+  analogWrite(pwm1, speed);
+  analogWrite(pwm2, speed);
+}
+
+void moveBackward(int speed) {
+  digitalWrite(in1, LOW);
+  digitalWrite(in2, HIGH);
+  digitalWrite(in3, LOW);
+  digitalWrite(in4, HIGH);
+  analogWrite(pwm1, speed);
+  analogWrite(pwm2, speed);
+}
+
+void turnLeft(int speed) {  
+  // ล้อซ้ายถอยหลัง, ล้อขวาเดินหน้า → เลี้ยวซ้าย
+  digitalWrite(in2, LOW);
+  digitalWrite(in1, HIGH);
+  digitalWrite(in4, HIGH);
+  digitalWrite(in3, LOW);
+  analogWrite(pwm1, speed);
+  analogWrite(pwm2, speed);
+}
+
+void turnRight(int speed) { 
+  // ล้อซ้ายเดินหน้า, ล้อขวาถอยหลัง → เลี้ยวขวา
+  digitalWrite(in2, HIGH);
+  digitalWrite(in1, LOW);
+  digitalWrite(in4, LOW);
+  digitalWrite(in3, HIGH);
+  analogWrite(pwm1, speed);
+  analogWrite(pwm2, speed);
+}
+
+void stopMotors() {
+  digitalWrite(in1, LOW);
+  digitalWrite(in2, LOW);
+  digitalWrite(in3, LOW);
+  digitalWrite(in4, LOW);
+  analogWrite(pwm1, 0);
+  analogWrite(pwm2, 0);
+}
 
 void sendEspNowPacket(const uint8_t *mac, const uint8_t *data, size_t len) {
   if (!g_initialized) {
@@ -53,28 +136,48 @@ void parseMessage(const uint8_t *data, int len) {
   RobotCommand cmd;
   memcpy(&cmd, data, sizeof(RobotCommand));
 
-  // Verify checksum
-  uint8_t expected_checksum = cmd.type ^ cmd.flags ^ cmd.speed ^ (cmd.timestamp & 0xFF);
+  // Verify checksum - different calculation for discovery vs command messages
+  uint8_t expected_checksum;
+  if (cmd.type == COMMAND) {
+    expected_checksum = cmd.type ^ cmd.flags ^ cmd.speed ^ cmd.servo1_pos ^ cmd.servo2_pos ^ (cmd.timestamp & 0xFF);
+  } else {
+    // For discovery messages, don't include servo positions in checksum
+    expected_checksum = cmd.type ^ cmd.flags ^ cmd.speed ^ (cmd.timestamp & 0xFF);
+  }
+  
   if (expected_checksum != cmd.checksum) {
     Serial.println("Checksum mismatch, ignoring packet");
     return;
   }
 
   if (cmd.type == COMMAND) {
-    // Reconstruct the command string
-    String dirStr = "";
-    if (cmd.flags & 0x01) dirStr += "f";
-    if (cmd.flags & 0x02) dirStr += "b";
-    if (cmd.flags & 0x04) dirStr += "l";
-    if (cmd.flags & 0x08) dirStr += "r";
-    if (cmd.flags & 0x10) dirStr += "ql";
-    if (cmd.flags & 0x20) dirStr += "qr";
-
-    if (dirStr.length() == 0) {
-      dirStr = "stop";
+    // Control servos
+    if (cmd.servo1_pos != currentServo1Pos) {
+      servo1.write(cmd.servo1_pos);
+      currentServo1Pos = cmd.servo1_pos;
+    }
+    if (cmd.servo2_pos != currentServo2Pos) {
+      servo2.write(cmd.servo2_pos);
+      currentServo2Pos = cmd.servo2_pos;
     }
 
-    Serial.printf("%s %d\n", dirStr.c_str(), cmd.speed);
+    // Control motors
+    int motorSpeed = map(cmd.speed, 0, 100, 0, 255);
+    if (cmd.flags & 0x01) { // forward
+      moveForward(motorSpeed);
+    } else if (cmd.flags & 0x02) { // backward
+      moveBackward(motorSpeed);
+    } else if (cmd.flags & 0x04) { // left
+      turnLeft(motorSpeed);
+    } else if (cmd.flags & 0x08) { // right
+      turnRight(motorSpeed);
+    } else if (cmd.flags & 0x10) { // spin_left
+      turnLeft(motorSpeed);
+    } else if (cmd.flags & 0x20) { // spin_right
+      turnRight(motorSpeed);
+    } else {
+      stopMotors();
+    }
   } else if (cmd.type == DISCOVERY_REQUEST) {
     if (strcmp(cmd.payload, "bocchi") == 0) {
       // Reply with robot name and MAC
@@ -82,7 +185,10 @@ void parseMessage(const uint8_t *data, int len) {
       replyCmd.type = DISCOVERY_REPLY;
       replyCmd.flags = 0;
       replyCmd.speed = 0;
+      replyCmd.servo1_pos = 90; // default
+      replyCmd.servo2_pos = 90; // default
       replyCmd.timestamp = millis();
+      // For discovery messages, don't include servo positions in checksum
       replyCmd.checksum = DISCOVERY_REPLY ^ 0 ^ 0 ^ (replyCmd.timestamp & 0xFF);
       snprintf(replyCmd.payload, sizeof(replyCmd.payload), "%s %s", ROBOT_NAME, WiFi.macAddress().c_str());
 
@@ -141,6 +247,20 @@ void init() {
   if (g_initialized) {
     return;
   }
+
+  // Setup pins
+  pinMode(in1, OUTPUT);
+  pinMode(in2, OUTPUT);
+  pinMode(pwm1, OUTPUT);
+  pinMode(in3, OUTPUT);
+  pinMode(in4, OUTPUT);
+  pinMode(pwm2, OUTPUT);
+
+  servo1.attach(servo1Pin);
+  servo2.attach(servo2Pin);
+  
+  servo1.write(currentServo1Pos);
+  servo2.write(currentServo2Pos);
 
   if (initEspNow()) {
     g_initialized = true;

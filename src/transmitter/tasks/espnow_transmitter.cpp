@@ -65,8 +65,15 @@ void parseReceivedMessage(const uint8_t *data, int len) {
   RobotCommand cmd;
   memcpy(&cmd, data, sizeof(RobotCommand));
 
-  // Verify checksum
-  uint8_t expected_checksum = cmd.type ^ cmd.flags ^ cmd.speed ^ (cmd.timestamp & 0xFF);
+  // Verify checksum - different calculation for discovery vs command messages
+  uint8_t expected_checksum;
+  if (cmd.type == COMMAND) {
+    expected_checksum = cmd.type ^ cmd.flags ^ cmd.speed ^ cmd.servo1_pos ^ cmd.servo2_pos ^ (cmd.timestamp & 0xFF);
+  } else {
+    // For discovery messages, don't include servo positions in checksum
+    expected_checksum = cmd.type ^ cmd.flags ^ cmd.speed ^ (cmd.timestamp & 0xFF);
+  }
+  
   if (expected_checksum != cmd.checksum) {
     Serial.println("Checksum mismatch, ignoring packet");
     return;
@@ -128,27 +135,56 @@ void processSerialInput() {
             if (parseMacAddress(macStr, mac)) {
               memcpy(g_lastMac, mac, 6);
               const char *commandStr = bracketEnd + 1;
-              // Parse command: "directions speed"
-              char *space = strchr((char*)commandStr, ' ');
-              if (space) {
-                *space = '\0';
+              // Parse command: "directions speed [servo1] [servo2]"
+              char *space1 = strchr((char*)commandStr, ' ');
+              if (space1) {
+                *space1 = '\0';
                 const char *dirStr = commandStr;
-                const char *speedStr = space + 1;
+                const char *speedStr = space1 + 1;
+                
+                // Parse speed
+                char *space2 = strchr((char*)speedStr, ' ');
+                int servo1_pos = 90; // default
+                int servo2_pos = 90; // default
+                
+                if (space2) {
+                  *space2 = '\0';
+                  // Parse servo1
+                  char *space3 = strchr(space2 + 1, ' ');
+                  if (space3) {
+                    *space3 = '\0';
+                    servo1_pos = atoi(space2 + 1);
+                    servo2_pos = atoi(space3 + 1);
+                  } else {
+                    servo1_pos = atoi(space2 + 1);
+                  }
+                  // Clamp servo positions
+                  if (servo1_pos < 0) servo1_pos = 0;
+                  if (servo1_pos > 180) servo1_pos = 180;
+                  if (servo2_pos < 0) servo2_pos = 0;
+                  if (servo2_pos > 180) servo2_pos = 180;
+                }
+                
                 uint8_t flags = parseDirectionFlags(dirStr);
                 int speed = atoi(speedStr);
                 if (speed < 0) speed = 0;
                 if (speed > 100) speed = 100;
 
+                Serial.printf("Parsed: dir='%s', speed=%d, servo1=%d, servo2=%d, flags=0x%02X\n", 
+                             dirStr, speed, servo1_pos, servo2_pos, flags);
+
                 RobotCommand cmd;
                 cmd.type = COMMAND;
                 cmd.flags = flags;
                 cmd.speed = (uint8_t)speed;
+                cmd.servo1_pos = (uint8_t)servo1_pos;
+                cmd.servo2_pos = (uint8_t)servo2_pos;
                 cmd.timestamp = millis();
-                cmd.checksum = COMMAND ^ flags ^ speed ^ (cmd.timestamp & 0xFF);
+                cmd.checksum = COMMAND ^ flags ^ speed ^ servo1_pos ^ servo2_pos ^ (cmd.timestamp & 0xFF);
                 memset(cmd.payload, 0, sizeof(cmd.payload));
 
-                Serial.printf("Sending to MAC %02X:%02X:%02X:%02X:%02X:%02X: flags=0x%02X, speed=%d, ts=%u, chk=0x%02X\n",
-                              mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], flags, speed, cmd.timestamp, cmd.checksum);
+                Serial.printf("Sending to MAC %02X:%02X:%02X:%02X:%02X:%02X: flags=0x%02X, speed=%d, servo1=%d, servo2=%d, ts=%u, chk=0x%02X\n",
+                              mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], flags, speed, cmd.servo1_pos, cmd.servo2_pos, cmd.timestamp, cmd.checksum);
                 sendEspNowPacket(mac, reinterpret_cast<const uint8_t*>(&cmd), sizeof(cmd));
               } else {
                 Serial.println("No speed specified");
@@ -169,7 +205,10 @@ void processSerialInput() {
           discCmd.type = DISCOVERY_REQUEST;
           discCmd.flags = 0;
           discCmd.speed = 0;
+          discCmd.servo1_pos = 90; // default
+          discCmd.servo2_pos = 90; // default
           discCmd.timestamp = millis();
+          // For discovery messages, don't include servo positions in checksum
           discCmd.checksum = DISCOVERY_REQUEST ^ 0 ^ 0 ^ (discCmd.timestamp & 0xFF);
           strcpy(discCmd.payload, "bocchi");
 
