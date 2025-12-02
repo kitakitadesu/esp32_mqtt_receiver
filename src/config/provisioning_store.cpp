@@ -4,8 +4,6 @@
 #include <cstring>
 #include <strings.h>
 
-#include "config/defaults.h"
-
 namespace {
 using provisioning::MqttInitParams;
 using provisioning::WifiCredentials;
@@ -47,18 +45,8 @@ void markMqttUpdated() {
 
 namespace provisioning {
 void initDefaults() {
-  copyBounded(g_wifi.ssid, WIFI_DEFAULT_SSID);
-  copyBounded(g_wifi.password, WIFI_DEFAULT_PASSWORD);
+  // No defaults for WiFi and MQTT since not used
   markWifiUpdated();
-
-  copyBounded(g_mqtt.host, MQTT_HOST);
-  g_mqtt.port = MQTT_PORT;
-  copyBounded(g_mqtt.clientId, MQTT_CLIENT_ID);
-  copyBounded(g_mqtt.username, MQTT_USERNAME);
-  copyBounded(g_mqtt.password, MQTT_PASSWORD);
-  copyBounded(g_mqtt.publishTopic, MQTT_PUB_TOPIC);
-  copyBounded(g_mqtt.commandTopic, MQTT_CMD_TOPIC);
-  copyBounded(g_mqtt.heartbeatTopic, MQTT_HEARTBEAT_TOPIC);
   markMqttUpdated();
 }
 

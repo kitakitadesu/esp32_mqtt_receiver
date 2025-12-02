@@ -12,7 +12,6 @@
 
 #include <string.h>
 
-#include "config/defaults.h"
 #include "config/provisioning_store.h"
 #include "tasks/wifi_task.h"
 
