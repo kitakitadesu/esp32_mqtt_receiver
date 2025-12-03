@@ -30,9 +30,9 @@ const uint8_t BROADCAST_MAC[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 // Motor Left
 #if defined(ESP8266)
-const int in1 = D7; // ESP8285 GPIO1
-const int in2 = D1; // ESP8285 GPIO2
-const int pwm1 = D2; // ESP8285 GPIO3
+const int in1 = 1; // GPIO1
+const int in2 = 2; // GPIO2
+const int pwm1 = 3; // GPIO3
 #else
 const int in1 = 16; //esp32
 const int in2 = 5; //esp32
@@ -41,9 +41,9 @@ const int pwm1 = 4; //esp32
 
 // Motor Right
 #if defined(ESP8266)
-const int in3 = D3; // ESP8285 GPIO4
-const int in4 = D4;  // ESP8285 GPIO5
-const int pwm2 = D8; // ESP8285 GPIO6
+const int in3 = 0; // GPIO0
+const int in4 = 4;  // GPIO4
+const int pwm2 = 5; // GPIO5
 #else
 const int in3 = 33; //esp32
 const int in4 = 27; //esp32
@@ -52,8 +52,8 @@ const int pwm2 = 32; //esp32
 
 // Servo pins
 #if defined(ESP8266)
-const int servo1Pin = D5; // ESP8285 GPIO7
-const int servo2Pin = D6; // ESP8285 GPIO8
+const int servo1Pin = 12; // GPIO12
+const int servo2Pin = 13; // GPIO13
 #else
 const int servo1Pin = 14; //esp32
 const int servo2Pin = 12; //esp32
