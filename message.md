@@ -101,13 +101,29 @@ Send `discovery` (without brackets) to broadcast discovery requests.
 
 ## Hardware Mapping
 
-### Motor Control
+### ESP32 Motor Control
 - Left motor: Pins 13 (IN1), 14 (IN2), 12 (PWM)
 - Right motor: Pins 33 (IN3), 27 (IN4), 32 (PWM)
 
-### Servo Control
+### ESP32 Servo Control
 - Servo 1: Pin 26
 - Servo 2: Pin 22
+
+### ESP8266 NodeMCU Motor Control
+- Left motor: Pins D1 (IN1), D2 (IN2), D3 (PWM)
+- Right motor: Pins D4 (IN3), D5 (IN4), D6 (PWM)
+
+### ESP8266 NodeMCU Servo Control
+- Servo 1: Pin D7
+- Servo 2: Pin D8
+
+### ESP8285 Motor Control
+- Left motor: Pins GPIO12 (IN1), GPIO13 (IN2), GPIO14 (PWM)
+- Right motor: Pins GPIO15 (IN3), GPIO0 (IN4), GPIO4 (PWM)
+
+### ESP8285 Servo Control
+- Servo 1: Pin GPIO5
+- Servo 2: Pin GPIO16
 
 ## Notes
 

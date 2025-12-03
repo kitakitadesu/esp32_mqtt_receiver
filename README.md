@@ -16,7 +16,7 @@ This project implements an ESP-NOW based robot control system with motor and ser
 - `arduino_nano_esp32` - Arduino Nano ESP32
 - `upesy_wroom` - uPesy ESP32 Wroom DevKit
 - `node32s` - Node32s (NEW!)
-- `nodemcuv2` - NodeMCU v2 (ESP8266)
+- `nodemcuv1` - NodeMCU v1 (ESP8285)
 
 ## Build Environments
 
@@ -31,12 +31,12 @@ These environments build the robot receiver firmware with motor and servo contro
 - `node32s_receiver` - Node32s, robot name "Node32sRobot"
 - `upesy_wroom_receiver` - uPesy Wroom
 - `arduino_nano_esp32_receiver` - Arduino Nano ESP32, robot name "DefaultRobot"
-- `nodemcuv2_receiver` - NodeMCU v2
-- `nodemcuv2_RobotA` - NodeMCU v2, robot name "RobotA"
-- `nodemcuv2_RobotB1` - NodeMCU v2, robot name "RobotB1"
-- `nodemcuv2_RobotB2` - NodeMCU v2, robot name "RobotB2"
-- `nodemcuv2_RobotC` - NodeMCU v2, robot name "RobotC"
-- `nodemcuv2_RobotD` - NodeMCU v2, robot name "RobotD"
+- `nodemcuv1_receiver` - NodeMCU v1
+- `nodemcuv1_RobotA` - NodeMCU v1, robot name "RobotA"
+- `nodemcuv1_RobotB1` - NodeMCU v1, robot name "RobotB1"
+- `nodemcuv1_RobotB2` - NodeMCU v1, robot name "RobotB2"
+- `nodemcuv1_RobotC` - NodeMCU v1, robot name "RobotC"
+- `nodemcuv1_RobotD` - NodeMCU v1, robot name "RobotD"
 
 ### Transmitter Environments (Remote Controllers)
 These environments build the transmitter firmware for sending commands:
@@ -44,7 +44,7 @@ These environments build the transmitter firmware for sending commands:
 - `upesy_wroom_transmitter` - uPesy Wroom
 - `arduino_nano_esp32_transmitter` - Arduino Nano ESP32
 - `node32s_transmitter` - Node32s (NEW!)
-- `nodemcuv2_transmitter` - NodeMCU v2
+- `nodemcuv1_transmitter` - NodeMCU v1
 
 ### Legacy Environments
 - `mqtt` - MQTT-based communication (legacy)
@@ -66,13 +66,29 @@ pio run -e RobotA
 
 ## Hardware Pin Configuration
 
-### Motor Control Pins
+### ESP32 Motor Control Pins
 - Left Motor: IN1=13, IN2=14, PWM=12
 - Right Motor: IN3=33, IN4=27, PWM=32
 
-### Servo Control Pins
+### ESP32 Servo Control Pins
 - Servo 1: Pin 26
 - Servo 2: Pin 22
+
+### ESP8266 NodeMCU Motor Control Pins
+- Left Motor: IN1=D1, IN2=D2, PWM=D3 (NodeMCU boards)
+- Right Motor: IN3=D4, IN4=D5, PWM=D6 (NodeMCU boards)
+
+### ESP8266 NodeMCU Servo Control Pins
+- Servo 1: Pin D7 (NodeMCU boards)
+- Servo 2: Pin D8 (NodeMCU boards)
+
+### ESP8285 Motor Control Pins
+- Left Motor: IN1=GPIO12, IN2=GPIO13, PWM=GPIO14
+- Right Motor: IN3=GPIO15, IN4=GPIO0, PWM=GPIO4
+
+### ESP8285 Servo Control Pins
+- Servo 1: Pin GPIO5
+- Servo 2: Pin GPIO16
 
 ## Usage
 

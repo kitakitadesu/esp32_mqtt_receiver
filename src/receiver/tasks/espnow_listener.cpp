@@ -2,7 +2,12 @@
 #include "robot_command.h"
 
 #include <Arduino.h>
+
+#if defined(ESP8266)
+#include <Servo.h>
+#else
 #include <ESP32Servo.h>
+#endif
 
 #ifndef ROBOT_NAME
 #define ROBOT_NAME "Unknown"
@@ -24,18 +29,35 @@ bool g_initialized = false;
 const uint8_t BROADCAST_MAC[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 // Motor Left
-const int in1 = 13; 
-const int in2 = 14;
-const int pwm1 = 12;
+#if defined(ESP8266)
+const int in1 = D7; // ESP8285 GPIO1
+const int in2 = D1; // ESP8285 GPIO2
+const int pwm1 = D2; // ESP8285 GPIO3
+#else
+const int in1 = 16; //esp32
+const int in2 = 5; //esp32
+const int pwm1 = 4; //esp32
+#endif
 
 // Motor Right
-const int in3 = 33;
-const int in4 = 27;
-const int pwm2 = 32;
+#if defined(ESP8266)
+const int in3 = D3; // ESP8285 GPIO4
+const int in4 = D4;  // ESP8285 GPIO5
+const int pwm2 = D8; // ESP8285 GPIO6
+#else
+const int in3 = 33; //esp32
+const int in4 = 27; //esp32
+const int pwm2 = 32; //esp32
+#endif
 
 // Servo pins
-const int servo1Pin = 26;
-const int servo2Pin = 22;
+#if defined(ESP8266)
+const int servo1Pin = D5; // ESP8285 GPIO7
+const int servo2Pin = D6; // ESP8285 GPIO8
+#else
+const int servo1Pin = 14; //esp32
+const int servo2Pin = 12; //esp32
+#endif
 
 Servo servo1;
 Servo servo2;
@@ -148,6 +170,18 @@ void parseMessage(const uint8_t *data, int len) {
   if (expected_checksum != cmd.checksum) {
     Serial.println("Checksum mismatch, ignoring packet");
     return;
+  }
+
+  // Print received message
+  if (cmd.type == COMMAND) {
+    Serial.printf("Received COMMAND: flags=0x%02X, speed=%d, servo1=%d, servo2=%d, timestamp=%lu\n",
+                  cmd.flags, cmd.speed, cmd.servo1_pos, cmd.servo2_pos, cmd.timestamp);
+  } else if (cmd.type == DISCOVERY_REQUEST) {
+    Serial.printf("Received DISCOVERY_REQUEST: payload='%s'\n", cmd.payload);
+  } else if (cmd.type == DISCOVERY_REPLY) {
+    Serial.printf("Received DISCOVERY_REPLY: payload='%s'\n", cmd.payload);
+  } else {
+    Serial.printf("Received unknown type: %d\n", cmd.type);
   }
 
   if (cmd.type == COMMAND) {
